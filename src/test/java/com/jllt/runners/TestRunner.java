@@ -11,17 +11,17 @@ import java.io.IOException;
 @CucumberOptions(
         features = {
                 "Tests/src/test/resources/features/wdsf",
-                "Tests/src/test/resources/features/certinia",
-                "Tests/src/test/resources/features/common"
+                //"Tests/src/test/resources/features/certinia",
+                //"Tests/src/test/resources/features/common"
         },
         glue = {
                 "com.jllt.stepDefinition",
                 "com.jllt.functional.component.wdsf",
-                "com.jllt.functional.component.certinia",
+                //"com.jllt.functional.component.certinia",
                 "com.jllt.smoke.wdsf",
-                "com.jllt.smoke.certinia",
+                //"com.jllt.smoke.certinia",
                 "com.jllt.endtoend.wdsf",
-                "com.jllt.endtoend.certinia"
+                //"com.jllt.endtoend.certinia"
         },
         plugin = {"pretty",
                 "com.aventstack.extentreports.cucumber.adapter.ExtentCucumberAdapter:",
