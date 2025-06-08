@@ -1,0 +1,120 @@
+name: Automated Test Suite
+
+on:
+  push:
+    branches:
+      - automation
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Test Environment'
+        required: true
+        default: 'UAT'
+        type: choice
+        options:
+          - QA
+          - UAT
+      project:
+        description: 'Project'
+        required: true
+        default: 'WDSF'
+        type: choice
+        options:
+          - WDSF
+          - Certinia
+      test_type:
+        description: 'Test Type'
+        required: true
+        default: 'All'
+        type: choice
+        options:
+          - All
+          - Functional
+          - Smoke
+          - End-to-End
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TEST_ENV: ${{ github.event.inputs.environment || 'UAT'}}
+  TEST_PROJECT: ${{ github.event.inputs.project }}
+  MAVEN_OPTS: "-Dmaven.test.failure.ignore=true"
+
+jobs:
+  functional_tests:
+    if: >
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.test_type == 'All' ||
+      github.event.inputs.test_type == 'Functional')) ||
+      (github.event_name == 'push' &&
+      github.ref == 'refs/heads/automation')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+      - name: Run Functional Tests
+        env:
+          TEST_ENV: ${{ github.event.inputs.environment || 'UAT'}}
+          TEST_PROJECT: ${{ github.event.inputs.project }}
+        run: mvn test -Dtest=com.jllt.functional.component.**.*Steps
+
+  smoke_tests:
+    if: >-
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.test_type == 'All' ||
+      github.event.inputs.test_type == 'Smoke')) ||
+      (github.event_name == 'push' &&
+      github.ref == 'refs/heads/automation')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+      - name: Run Smoke Tests
+        env:
+          TEST_ENV: ${{ github.event.inputs.environment || 'UAT'}}
+          TEST_PROJECT: ${{ github.event.inputs.project }}
+        run: mvn test -Dtest=com.jllt.smoke.**.*Steps
+
+  end_to_end_tests:
+    if: >-
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.test_type == 'All' ||
+      github.event.inputs.test_type == 'End-to-End')) ||
+      (github.event_name == 'push' &&
+      github.ref == 'refs/heads/automation')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+      - name: Run End-to-End Tests
+        env:
+          TEST_ENV: ${{ github.event.inputs.environment || 'UAT'}}
+          TEST_PROJECT: ${{ github.event.inputs.project }}
+        run: mvn test -Dtest=com.jllt.endtoend.**.*Steps
+
+  upload_results:
+    needs: [functional_tests, smoke_tests, end_to_end_tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: |
+                Tests/target/extent-reports/
