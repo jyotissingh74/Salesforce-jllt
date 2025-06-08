@@ -62,7 +62,7 @@ jobs:
         env:
           TEST_ENV: ${{ github.event.inputs.environment || 'UAT'}}
           TEST_PROJECT: ${{ github.event.inputs.project }}
-        run: mvn test -Dtest=**/*Steps
+        run: mvn test -Dtest=com.jllt.runners.TestRunner
 
   smoke_tests:
     if: >-
@@ -83,7 +83,7 @@ jobs:
         env:
           TEST_ENV: ${{ github.event.inputs.environment || 'UAT'}}
           TEST_PROJECT: ${{ github.event.inputs.project }}
-        run: mvn test -Dtest=**/*Steps
+        run: mvn test -Dtest=com.jllt.runners.TestRunner
 
   end_to_end_tests:
     if: >-
@@ -104,7 +104,7 @@ jobs:
         env:
           TEST_ENV: ${{ github.event.inputs.environment || 'UAT'}}
           TEST_PROJECT: ${{ github.event.inputs.project }}
-        run: mvn test -Dtest=**/*Steps
+        run: mvn test -Dtest=com.jllt.runners.TestRunner
 
   upload_results:
     needs: [functional_tests, smoke_tests, end_to_end_tests]
