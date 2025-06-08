@@ -19,6 +19,13 @@ public class webDriverManager {
             options.addArguments("--block-new-web-contents");
             options.addArguments("--incognito");
 
+            // Read from config.properties
+            String headless = configReader.getProperty("headless");
+            if ("true".equalsIgnoreCase(headless)) {
+                options.addArguments("--headless=new"); // Safer for latest Chrome versions
+            }
+
+
             Map<String, Object> prefs = new HashMap<>();
             prefs.put("profile.default_content_setting_values.geolocation", 2); // 2 = Block
             options.setExperimentalOption("prefs", prefs);
