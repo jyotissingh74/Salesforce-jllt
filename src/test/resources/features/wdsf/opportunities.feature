@@ -1,4 +1,4 @@
-@account
+@opportunity
 Feature: Opportunity Creation in Salesforce
 
   Background:

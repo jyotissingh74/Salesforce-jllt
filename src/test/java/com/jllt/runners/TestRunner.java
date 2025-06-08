@@ -10,7 +10,7 @@ import java.io.IOException;
 
 @CucumberOptions(
         features = {
-                "Tests/src/test/resources/features/wdsf",
+                "src/test/resources/features/wdsf",
                 //"Tests/src/test/resources/features/certinia",
                 //"Tests/src/test/resources/features/common"
         },
