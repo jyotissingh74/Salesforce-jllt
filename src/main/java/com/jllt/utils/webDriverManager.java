@@ -18,6 +18,8 @@ public class webDriverManager {
             options.addArguments("--disable-notifications");
             options.addArguments("--block-new-web-contents");
             options.addArguments("--incognito");
+            options.addArguments("--no-sandbox"); // Bypass OS security model (needed in CI)
+            options.addArguments("--disable-dev-shm-usage"); // Avoids limited /dev/shm size
 
             // Read from config.properties
             String headless = configReader.getProperty("headless");
