@@ -121,7 +121,7 @@ public class accountsWdsfPage extends basePage {
         wait.until(ExpectedConditions.visibilityOf(SearchAndSelectAccountTxt));
         SearchAndSelectAccountTxt.sendKeys(accountName);
         logger.info("Entered account name in search field");
-        Thread.sleep(1000);
+        Thread.sleep(2000);
 
         //,................................................
         selectCountryDropdownOnAccountSearch("United States");
