@@ -155,9 +155,9 @@ public class contactsWdsfPage extends basePage {
         testContext.getLogger().info("Actual Page Title: {}", actualTitle);
 
         if (!actualTitle.equals(expectedTitle)) {
-            throw new AssertionError("Account landing page title mismatch. Expected: " + expectedTitle + ", but got: " + actualTitle);
+            throw new AssertionError("Contact landing page title mismatch. Expected: " + expectedTitle + ", but got: " + actualTitle);
         }
-        testContext.getLogger().info("Account landing page title verified successfully.");
+        testContext.getLogger().info("Contact landing page title verified successfully.");
     }
 
     public void tearDown() {

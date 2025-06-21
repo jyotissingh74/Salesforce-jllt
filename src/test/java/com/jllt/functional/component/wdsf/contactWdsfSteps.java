@@ -36,8 +36,6 @@ public class contactWdsfSteps {
         //Map<String, String> details = contactDetails.get(0); // Get the first (and only) row of data
         Map<String, String> details = new HashMap<>(contactDetails.get(0));
 
-        //String accountName = context.getContextData("accountName");
-        //String accountName = String.valueOf(context.getContextData("accountName"));
         String accountName = (String) context.getContextData("accountName");
         extentLogger.info("Retrieve account name from context");
         context.getLogger().info("Retrieved account name from context: {}", accountName);
