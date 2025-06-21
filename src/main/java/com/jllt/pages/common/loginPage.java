@@ -94,7 +94,7 @@ public class loginPage extends basePage {
         wait.until(ExpectedConditions.elementToBeClickable(setupOption)).click();
         SearchUserOnSetupPage(targetUsername);
         Thread.sleep(3000);
-        testContext.getCommonUtils().switchToUserIframeWithRetry("//iframe[contains(@title, 'User')]", 5, 2); // Retry 5 times with 2 seconds wait
+        testContext.getCommonUtils().switchToUserIframeWithRetry("//iframe[contains(@title, 'User')]", 5, 3); // Retry 5 times with 2 seconds wait
         wait.until(ExpectedConditions.elementToBeClickable(LoginButtonOnUsersPage)).click();
         logger.info("Logged in as user successfully");
     }
