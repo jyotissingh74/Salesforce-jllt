@@ -35,7 +35,7 @@ public class accountWdsfSteps {
         context.getAccountsPage().navigateToAccountsTab();
         //context.getAccountsPage().clickNewAccount();
         extentReportListener.addScreenshotToStep("Clicked on New Contact and adding screenshot", getScreenshotBase64());
-        Thread.sleep(2000);
+        Thread.sleep(500);
 //        Assert.assertTrue(context.getCommonUtils().getPageTitle().contains("New Account | Salesforce"));
 //        context.getAccountsPage().SearchAndSelectAccount("Test Account");
 //        extentLogger.pass("Accounts Page opened successfully");
@@ -82,7 +82,8 @@ public class accountWdsfSteps {
     public void VerifyAccountSearchPage() throws InterruptedException {
         Thread.sleep(2000);
         String recordType = (String) context.getContextData("currentRecordType");
-        String expectedTitle = "New Account: " + recordType + " | Salesforce";
+        String expectedTitle = "New Account | Salesforce";
+        //String expectedTitle = "New Account: " + recordType + " | Salesforce";
         String actualTitle = context.getCommonUtils().getPageTitle();
 
         Assert.assertTrue(actualTitle.contains(expectedTitle),

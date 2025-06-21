@@ -3,10 +3,11 @@ package com.jllt.base;
 import com.jllt.scenarioContext.context;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
-
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -41,10 +42,6 @@ public class commonUtils extends basePage{
     }
 
     public void jsScrollDown(WebElement element) {
-        executor.executeScript("arguments[0].scrollIntoView(true);", element);
-    }
-
-    public void jsScrollUp(WebElement element) {
         executor.executeScript("arguments[0].scrollIntoView(true);", element);
     }
 
@@ -83,5 +80,24 @@ public class commonUtils extends basePage{
         LocalDate date = LocalDate.now().plusDays(daysToAdd);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM d, yyyy");
         return date.format(formatter);
+    }
+
+    public void pressEnter(){
+        Actions actions=new Actions(driver);
+        actions.sendKeys(Keys.ENTER).build().perform();
+    }
+
+    public void waitForSpinnerToDisappear() {
+        //By spinner = By.cssSelector("lightning-spinner.slds-spinner_container");
+        By spinner = By.xpath("//lightning-spinner[contains(@class,'slds-spinner_container')] | //*[contains(@class,'slds-spinner')] | //*[contains(@class,'slds-spinner_container')]");
+        wait.until(ExpectedConditions.invisibilityOfElementLocated(spinner));
+    }
+
+    public boolean isElementDisplayed(WebElement element) {
+        try {
+            return element.isDisplayed();
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
