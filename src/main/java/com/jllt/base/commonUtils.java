@@ -100,4 +100,25 @@ public class commonUtils extends basePage{
             return false;
         }
     }
+
+    public void switchToUserIframeWithRetry(String iframeXpath, int maxRetries, int waitSeconds) {
+        By iframeLocator = By.xpath(iframeXpath);
+        int attempts = 0;
+        while (attempts < maxRetries) {
+            try {
+                wait.until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(iframeLocator));
+                logger.info("Successfully switched to user iframe on attempt: " + (attempts + 1));
+                return;
+            } catch (Exception e) {
+                logger.warn("Attempt " + (attempts + 1) + " failed to find iframe. Retrying...");
+                try {
+                    Thread.sleep(waitSeconds * 1000L);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+                attempts++;
+            }
+        }
+        throw new RuntimeException("Failed to switch to user iframe after " + maxRetries + " attempts.");
+    }
 }

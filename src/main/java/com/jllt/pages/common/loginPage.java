@@ -68,7 +68,7 @@ public class loginPage extends basePage {
         logger.info("Login button clicked");
     }
 
-    public void loginAsUser(String targetUsername) throws InterruptedException {
+    /*public void loginAsUser(String targetUsername) throws InterruptedException {
         logger.info("Attempting to login as user: {}", targetUsername);
         wait.until(ExpectedConditions.elementToBeClickable(setupGear)).click();
         logger.debug("Setup gear clicked");
@@ -85,6 +85,17 @@ public class loginPage extends basePage {
         wait.until(ExpectedConditions.elementToBeClickable(LoginButtonOnUsersPage)).click();
         logger.debug("Login button on Users page clicked");
         driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
+        logger.info("Logged in as user successfully");
+    }*/
+
+    public void loginAsUser(String targetUsername) throws InterruptedException {
+        logger.info("Attempting to login as user: {}", targetUsername);
+        wait.until(ExpectedConditions.elementToBeClickable(setupGear)).click();
+        wait.until(ExpectedConditions.elementToBeClickable(setupOption)).click();
+        SearchUserOnSetupPage(targetUsername);
+        Thread.sleep(3000);
+        testContext.getCommonUtils().switchToUserIframeWithRetry("//iframe[contains(@title, 'User')]", 5, 2); // Retry 5 times with 2 seconds wait
+        wait.until(ExpectedConditions.elementToBeClickable(LoginButtonOnUsersPage)).click();
         logger.info("Logged in as user successfully");
     }
 
