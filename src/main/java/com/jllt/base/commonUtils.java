@@ -1,10 +1,8 @@
 package com.jllt.base;
 
 import com.jllt.scenarioContext.context;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.Keys;
-import org.openqa.selenium.WebElement;
+import com.jllt.utils.extentReportListener;
+import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -12,6 +10,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class commonUtils extends basePage{
@@ -101,7 +100,7 @@ public class commonUtils extends basePage{
         }
     }
 
-    public void switchToUserIframeWithRetry(String iframeXpath, int maxRetries, int waitSeconds) {
+    /*public void switchToUserIframeWithRetry(String iframeXpath, int maxRetries, int waitSeconds) {
         By iframeLocator = By.xpath(iframeXpath);
         int attempts = 0;
         while (attempts < maxRetries) {
@@ -119,6 +118,75 @@ public class commonUtils extends basePage{
                 attempts++;
             }
         }
+        throw new RuntimeException("Failed to switch to user iframe after " + maxRetries + " attempts.");
+    }*/
+
+    public void switchToUserIframeWithRetry(String iframeXpath, int maxRetries, int waitSeconds) {
+        By iframeLocator = By.xpath(iframeXpath);
+        int attempts = 0;
+
+        while (attempts < maxRetries) {
+            try {
+                List<WebElement> iframes = driver.findElements(By.tagName("iframe"));
+                testContext.getLogger().info("Attempt {}: Found {} iframes", attempts + 1, iframes.size());
+
+                for (WebElement iframe : iframes) {
+                    String title = iframe.getAttribute("title");
+                    String id = iframe.getAttribute("id");
+                    String name = iframe.getAttribute("name");
+                    String src = iframe.getAttribute("src");
+                    testContext.getLogger().info("Iframe - title: '{}', id: '{}', name: '{}', src: '{}'", title, id, name, src);
+                }
+
+                // Try direct wait for target iframe
+                wait.until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(iframeLocator));
+                testContext.getLogger().info("Switched to iframe using XPath: {}", iframeXpath);
+                return;
+
+            } catch (Exception e) {
+                testContext.getLogger().warn("Attempt {} failed. Retrying after {}s...", attempts + 1, waitSeconds);
+
+                // Fallback: look for iframe with 'user' in title/name/src
+                try {
+                    List<WebElement> fallbackIframes = driver.findElements(By.tagName("iframe"));
+                    for (WebElement iframe : fallbackIframes) {
+                        String title = iframe.getAttribute("title");
+                        String name = iframe.getAttribute("name");
+                        String src = iframe.getAttribute("src");
+
+                        if ((title != null && title.toLowerCase().contains("user")) ||
+                                (name != null && name.toLowerCase().contains("user")) ||
+                                (src != null && src.toLowerCase().contains("user"))) {
+
+                            driver.switchTo().frame(iframe);
+                            testContext.getLogger().info("Fallback: Switched to iframe via matching attributes");
+                            return;
+                        }
+                    }
+                } catch (Exception ignored) {
+                    testContext.getLogger().warn("Fallback attempt to switch iframe failed.");
+                }
+
+                try {
+                    Thread.sleep(waitSeconds * 1000L);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            attempts++;
+        }
+
+        // ❌ After retries fail - take screenshot and log to Extent Report
+        testContext.getLogger().error("Failed to switch to iframe after {} attempts.", maxRetries);
+        try {
+            TakesScreenshot ts = (TakesScreenshot) driver;
+            String base64Screenshot = ts.getScreenshotAs(OutputType.BASE64);
+            extentReportListener.addScreenshotToStep("Failed to switch to iframe after retries", base64Screenshot);
+            testContext.getLogger().info("Screenshot added to Extent Report");
+        } catch (Exception e) {
+            testContext.getLogger().error("Error capturing screenshot", e);
+        }
+
         throw new RuntimeException("Failed to switch to user iframe after " + maxRetries + " attempts.");
     }
 }
