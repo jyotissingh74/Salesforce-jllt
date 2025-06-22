@@ -105,7 +105,8 @@ public class opportunityWdsfPage extends basePage {
 
     public void navigateToOpportunitiesTab() throws InterruptedException {
         testContext.getLogger().info("Navigating to Opportunities tab");
-        testContext.getDriver().switchTo().defaultContent();
+        //testContext.getDriver().switchTo().defaultContent();
+        testContext.getCommonUtils().switchToUserIframeWithRetry("//iframe[contains(@title, 'dashboard')]", 5, 3);
         testContext.getDriver().manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
         Thread.sleep(2000);
         //wait.until(ExpectedConditions.elementToBeClickable(OpportunitiesTab)).click();
