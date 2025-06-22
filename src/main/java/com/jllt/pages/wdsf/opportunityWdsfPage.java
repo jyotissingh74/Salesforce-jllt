@@ -9,6 +9,7 @@ import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 public class opportunityWdsfPage extends basePage {
@@ -105,11 +106,14 @@ public class opportunityWdsfPage extends basePage {
 
     public void navigateToOpportunitiesTab() throws InterruptedException {
         testContext.getLogger().info("Navigating to Opportunities tab");
-        //testContext.getDriver().switchTo().defaultContent();
-        testContext.getCommonUtils().switchToUserIframeWithRetry("//iframe[contains(@title, 'dashboard')]", 5, 3);
+        testContext.getDriver().switchTo().defaultContent();
+        Thread.sleep(1000);
+        List<WebElement> oppTabs = driver.findElements(By.xpath("//span[text()='Opportunities']/parent::a"));
+        testContext.getLogger().info("Found Opportunities tab elements: {}", oppTabs.size());
         testContext.getDriver().manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
         Thread.sleep(2000);
         //wait.until(ExpectedConditions.elementToBeClickable(OpportunitiesTab)).click();
+        testContext.getCommonUtils().waitForSpinnerToDisappear();
         wait.until(ExpectedConditions.elementToBeClickable(OpportunitiesTab));
         executor.executeScript("arguments[0].click();", OpportunitiesTab);
         Thread.sleep(2000);
