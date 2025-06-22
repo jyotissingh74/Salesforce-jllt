@@ -189,4 +189,12 @@ public class commonUtils extends basePage{
 
         throw new RuntimeException("Failed to switch to user iframe after " + maxRetries + " attempts.");
     }
+
+    public void printAllIframes() {
+        List<WebElement> iframes = driver.findElements(By.tagName("iframe"));
+        System.out.println("Founddddddddddddd " + iframes.size() + " iframes:");
+        for (WebElement iframe : iframes) {
+            System.out.println("iframe titleeeeeeeeeeeeeeeeeeeeeeeee: " + iframe.getAttribute("title"));
+        }
+    }
 }
