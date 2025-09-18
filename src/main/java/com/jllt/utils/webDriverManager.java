@@ -3,6 +3,7 @@ package com.jllt.utils;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
 
 import java.io.File;
@@ -11,10 +12,20 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class webDriverManager {
     private static WebDriver driver;
-    private static String userDataDir;
+    private static ChromeDriverService service;
+    private static final String USER_DATA_DIR_PREFIX = "/tmp/chrome_user_data_";
+
+    static {
+        // Disable verbose HTTP wire logging
+        Logger.getLogger("org.apache.hc.client5.http.wire").setLevel(Level.OFF);
+        Logger.getLogger("org.apache.http.wire").setLevel(Level.OFF);
+        System.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog");
+    }
 
     public static WebDriver getDriver() {
         if (driver == null) {
@@ -25,110 +36,191 @@ public class webDriverManager {
 
     private static void initializeDriver() {
         try {
-            WebDriverManager.chromedriver().setup();
+            // Create ChromeDriverService with specific configurations
+            ChromeDriverService.Builder serviceBuilder = new ChromeDriverService.Builder();
+            serviceBuilder.withSilent(true);  // Reduce logging
+            serviceBuilder.withVerbose(false); // Disable verbose logging
+
+            service = serviceBuilder.build();
 
             ChromeOptions options = new ChromeOptions();
 
-            // Create unique user data directory for each test run
-            userDataDir = createUniqueUserDataDir();
+            // Network and SSL configurations
+            options.addArguments("--headless=new");                // Use new headless mode
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--disable-gpu");
+            options.addArguments("--disable-extensions");
+            options.addArguments("--disable-plugins");
+            options.addArguments("--disable-images");
+            options.addArguments("--disable-notifications");
 
-            options.addArguments(
-                    "--disable-gpu",
-                    "--disable-dev-shm-usage",
-                    "--disable-notifications",
-                    "--block-new-web-contents",
-                    "--incognito",
-                    "--no-sandbox",
-                    "--disable-extensions",
-                    "--disable-plugins",
-                    "--disable-images",
-                    "--disable-javascript-harmony-shipping",
-                    "--disable-background-timer-throttling",
-                    "--disable-renderer-backgrounding",
-                    "--disable-backgrounding-occluded-windows",
-                    "--disable-features=TranslateUI,BlinkGenPropertyTrees",
-                    "--user-data-dir=" + userDataDir
-            );
+            // Network specific options
+            options.addArguments("--disable-web-security");
+            options.addArguments("--allow-running-insecure-content");
+            options.addArguments("--ignore-certificate-errors");
+            options.addArguments("--ignore-ssl-errors");
+            options.addArguments("--ignore-certificate-errors-spki-list");
+            options.addArguments("--ignore-ssl-errors-ignore-ssl-errors");
+            options.addArguments("--disable-features=VizDisplayCompositor");
+            options.addArguments("--disable-logging");
+            options.addArguments("--log-level=3");  // Fatal errors only
+            options.addArguments("--silent");
+            options.addArguments("--disable-background-networking");
+            options.addArguments("--disable-background-timer-throttling");
+            options.addArguments("--disable-renderer-backgrounding");
+            options.addArguments("--disable-backgrounding-occluded-windows");
+            options.addArguments("--disable-client-side-phishing-detection");
+            options.addArguments("--disable-crash-reporter");
+            options.addArguments("--no-crash-upload");
+            options.addArguments("--disable-default-apps");
+            options.addArguments("--disable-sync");
+            options.addArguments("--no-first-run");
+            options.addArguments("--disable-prompt-on-repost");
+            options.addArguments("--disable-hang-monitor");
 
-            // Add headless mode for CI/CD environments
-            if (isRunningInCIEnvironment()) {
-                options.addArguments("--headless");
-            }
+            // Proxy and network settings
+            options.addArguments("--no-proxy-server");
+            options.addArguments("--disable-proxy-certificate-handler");
 
+            // Window and performance settings
+            options.addArguments("--window-size=1920,1080");
+            options.addArguments("--start-maximized");
+
+            // Unique user data directory
+            String userDataDir = USER_DATA_DIR_PREFIX + System.currentTimeMillis() + "_" + Thread.currentThread().getId();
+            options.addArguments("--user-data-dir=" + userDataDir);
+
+            // Disable automation detection
             options.setExperimentalOption("useAutomationExtension", false);
             options.addArguments("--disable-blink-features=AutomationControlled");
+            options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
 
-            driver = new ChromeDriver(options);
-            driver.manage().window().maximize();
+            // Set preferences to reduce network activity
+            Map<String, Object> prefs = new HashMap<>();
+            prefs.put("profile.default_content_setting_values.geolocation", 2);
+            prefs.put("profile.default_content_setting_values.notifications", 2);
+            prefs.put("profile.default_content_settings.popups", 0);
+            prefs.put("profile.managed_default_content_settings.images", 2);
+            prefs.put("profile.default_content_setting_values.media_stream", 2);
+            prefs.put("profile.default_content_setting_values.cookies", 2);
+            options.setExperimentalOption("prefs", prefs);
+
+            // Logging preferences to reduce debug output
+            Map<String, Object> logPrefs = new HashMap<>();
+            logPrefs.put("performance", "OFF");
+            logPrefs.put("browser", "OFF");
+            logPrefs.put("driver", "OFF");
+            options.setCapability("goog:loggingPrefs", logPrefs);
+
+            // Create driver with service
+            driver = new ChromeDriver(service, options);
+
+            // Set timeouts
+            driver.manage().timeouts().implicitlyWait(java.time.Duration.ofSeconds(10));
+            driver.manage().timeouts().pageLoadTimeout(java.time.Duration.ofSeconds(30));
+            driver.manage().timeouts().scriptTimeout(java.time.Duration.ofSeconds(30));
+
+            System.out.println("✅ Chrome WebDriver initialized successfully");
 
         } catch (Exception e) {
             System.err.println("Failed to initialize WebDriver: " + e.getMessage());
-            throw new RuntimeException("WebDriver initialization failed", e);
+            e.printStackTrace();
+
+            // Try ultra-minimal configuration
+            tryUltraMinimalInit();
         }
     }
 
-    private static String createUniqueUserDataDir() {
+    private static void tryUltraMinimalInit() {
         try {
-            // Create unique directory in system temp folder
-            String tempDir = System.getProperty("java.io.tmpdir");
-            String uniqueDir = tempDir + File.separator + "chrome_user_data_" + UUID.randomUUID().toString();
-            Path userDataPath = Path.of(uniqueDir);
-            Files.createDirectories(userDataPath);
-            return uniqueDir;
-        } catch (Exception e) {
-            System.err.println("Failed to create user data directory: " + e.getMessage());
-            // Fallback to default temp directory
-            return System.getProperty("java.io.tmpdir") + File.separator + "chrome_" + System.currentTimeMillis();
-        }
-    }
+            System.out.println("Trying ultra-minimal Chrome configuration...");
 
-    private static boolean isRunningInCIEnvironment() {
-        return System.getenv("CI") != null ||
-                System.getenv("JENKINS_URL") != null ||
-                System.getenv("GITHUB_ACTIONS") != null ||
-                System.getProperty("headless") != null;
+            ChromeOptions options = new ChromeOptions();
+
+            // Absolute minimal options
+            options.addArguments("--headless");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--disable-gpu");
+            options.addArguments("--disable-logging");
+            options.addArguments("--log-level=3");
+            options.addArguments("--silent");
+            options.addArguments("--window-size=1920,1080");
+
+            // Minimal user data directory
+            options.addArguments("--user-data-dir=/tmp/chrome_ultra_" + System.currentTimeMillis());
+
+            driver = new ChromeDriver(options);
+
+            System.out.println("Ultra-minimal Chrome WebDriver initialized");
+
+        } catch (Exception e2) {
+            System.err.println("Ultra-minimal initialization failed: " + e2.getMessage());
+            throw new RuntimeException("All WebDriver initialization attempts failed", e2);
+        }
     }
 
     public static void quitDriver() {
         if (driver != null) {
             try {
+                System.out.println("Quitting WebDriver...");
                 driver.quit();
             } catch (Exception e) {
                 System.err.println("Error quitting driver: " + e.getMessage());
             } finally {
                 driver = null;
-                // Clean up user data directory
-                cleanupUserDataDir();
             }
         }
+
+        if (service != null) {
+            try {
+                service.stop();
+            } catch (Exception e) {
+                System.err.println("Error stopping service: " + e.getMessage());
+            } finally {
+                service = null;
+            }
+        }
+
+        cleanupTempFiles();
     }
 
-    private static void cleanupUserDataDir() {
-        if (userDataDir != null) {
-            try {
-                File dir = new File(userDataDir);
-                if (dir.exists()) {
-                    deleteDirectory(dir);
+    private static void cleanupTempFiles() {
+        try {
+            File tmpDir = new File("/tmp");
+            File[] chromeFiles = tmpDir.listFiles((dir, name) ->
+                    name.startsWith("chrome_user_data_") ||
+                            name.startsWith("chrome_ultra_") ||
+                            name.startsWith("scoped_dir"));
+
+            if (chromeFiles != null) {
+                for (File file : chromeFiles) {
+                    if (file.isDirectory()) {
+                        deleteDirectory(file);
+                    }
                 }
-            } catch (Exception e) {
-                System.err.println("Failed to cleanup user data directory: " + e.getMessage());
-            } finally {
-                userDataDir = null;
             }
+        } catch (Exception e) {
+            // Ignore cleanup errors
         }
     }
 
     private static void deleteDirectory(File directory) {
-        File[] files = directory.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    deleteDirectory(file);
-                } else {
-                    file.delete();
+        try {
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isDirectory()) {
+                        deleteDirectory(file);
+                    } else {
+                        file.delete();
+                    }
                 }
             }
+            directory.delete();
+        } catch (Exception e) {
+            // Ignore cleanup errors in CI
         }
-        directory.delete();
     }
 }
