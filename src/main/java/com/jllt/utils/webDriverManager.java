@@ -15,18 +15,14 @@ public class webDriverManager {
 
         if (driverThreadLocal.get() == null) {
             ChromeOptions options = new ChromeOptions();
+            options.addArguments("--disable-gpu");
+            options.addArguments("--disable-dev-shm-usage");
             options.addArguments("--disable-notifications");
             options.addArguments("--block-new-web-contents");
             options.addArguments("--incognito");
-            options.addArguments("--no-sandbox"); // Bypass OS security model (needed in CI)
-            options.addArguments("--disable-dev-shm-usage"); // Avoids limited /dev/shm size
 
-            // Read from config.properties
-            String headless = configReader.getProperty("headless");
-            if ("true".equalsIgnoreCase(headless)) {
-                options.addArguments("--headless=new"); // Safer for latest Chrome versions
-            }
-
+            // Adding this line to fix the "user data directory already in use" error
+            options.addArguments("--user-data-dir=/tmp/chrome-data-" + System.currentTimeMillis());
 
             Map<String, Object> prefs = new HashMap<>();
             prefs.put("profile.default_content_setting_values.geolocation", 2); // 2 = Block
@@ -41,8 +37,11 @@ public class webDriverManager {
 
     public static void quitDriver() {
         WebDriver driver = driverThreadLocal.get();
-        if (driver != null) {
-            driver.quit();
+        try {
+            if (driver != null) {
+                try { driver.quit(); } catch (Exception ignored) {}
+            }
+        } finally {
             driverThreadLocal.remove();
         }
     }

@@ -15,7 +15,7 @@ import java.util.Random;
 
 public class commonUtils extends basePage{
     private final JavascriptExecutor executor;
-    //private WebDriverWait wait;
+    Actions actions=new Actions(driver);
 
     public commonUtils(context testContext) {
         super(testContext);
@@ -40,12 +40,19 @@ public class commonUtils extends basePage{
                 .ifPresent(handle -> testContext.getDriver().switchTo().window(handle));
     }
 
-    public void jsScrollDown(WebElement element) {
+    public void jsScrollToElement(WebElement element) throws InterruptedException {
         executor.executeScript("arguments[0].scrollIntoView(true);", element);
+        Thread.sleep(1000);
     }
 
-    public void takeScreenshot(String fileName) {
+    public void jsClickToElement(WebElement element) throws InterruptedException {
+        executor.executeScript("arguments[0].click();", element);
+        Thread.sleep(500);
+    }
 
+    public void jsExpandSection(WebElement element) throws InterruptedException {
+        executor.executeScript("arguments[0].setAttribute('aria-expanded', 'true');", element);
+        Thread.sleep(500);
     }
 
     public String getPageTitle() {
@@ -82,7 +89,6 @@ public class commonUtils extends basePage{
     }
 
     public void pressEnter(){
-        Actions actions=new Actions(driver);
         actions.sendKeys(Keys.ENTER).build().perform();
     }
 
@@ -100,26 +106,9 @@ public class commonUtils extends basePage{
         }
     }
 
-    /*public void switchToUserIframeWithRetry(String iframeXpath, int maxRetries, int waitSeconds) {
-        By iframeLocator = By.xpath(iframeXpath);
-        int attempts = 0;
-        while (attempts < maxRetries) {
-            try {
-                wait.until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(iframeLocator));
-                logger.info("Successfully switched to user iframe on attempt: " + (attempts + 1));
-                return;
-            } catch (Exception e) {
-                logger.warn("Attempt " + (attempts + 1) + " failed to find iframe. Retrying...");
-                try {
-                    Thread.sleep(waitSeconds * 1000L);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
-                attempts++;
-            }
-        }
-        throw new RuntimeException("Failed to switch to user iframe after " + maxRetries + " attempts.");
-    }*/
+    public void waitForPageLoad() {
+        wait.until(ExpectedConditions.jsReturnsValue("return document.readyState === 'complete';"));
+    }
 
     public void switchToUserIframeWithRetry(String iframeXpath, int maxRetries, int waitSeconds) {
         By iframeLocator = By.xpath(iframeXpath);
@@ -131,10 +120,10 @@ public class commonUtils extends basePage{
                 testContext.getLogger().info("Attempt {}: Found {} iframes", attempts + 1, iframes.size());
 
                 for (WebElement iframe : iframes) {
-                    String title = iframe.getAttribute("title");
-                    String id = iframe.getAttribute("id");
-                    String name = iframe.getAttribute("name");
-                    String src = iframe.getAttribute("src");
+                    String title = iframe.getDomAttribute("title");
+                    String id = iframe.getDomAttribute("id");
+                    String name = iframe.getDomAttribute("name");
+                    String src = iframe.getDomAttribute("src");
                     testContext.getLogger().info("Iframe - title: '{}', id: '{}', name: '{}', src: '{}'", title, id, name, src);
                 }
 
@@ -150,9 +139,9 @@ public class commonUtils extends basePage{
                 try {
                     List<WebElement> fallbackIframes = driver.findElements(By.tagName("iframe"));
                     for (WebElement iframe : fallbackIframes) {
-                        String title = iframe.getAttribute("title");
-                        String name = iframe.getAttribute("name");
-                        String src = iframe.getAttribute("src");
+                        String title = iframe.getDomAttribute("title");
+                        String name = iframe.getDomAttribute("name");
+                        String src = iframe.getDomAttribute("src");
 
                         if ((title != null && title.toLowerCase().contains("user")) ||
                                 (name != null && name.toLowerCase().contains("user")) ||
@@ -176,7 +165,6 @@ public class commonUtils extends basePage{
             attempts++;
         }
 
-        // ❌ After retries fail - take screenshot and log to Extent Report
         testContext.getLogger().error("Failed to switch to iframe after {} attempts.", maxRetries);
         try {
             TakesScreenshot ts = (TakesScreenshot) driver;
@@ -190,11 +178,136 @@ public class commonUtils extends basePage{
         throw new RuntimeException("Failed to switch to user iframe after " + maxRetries + " attempts.");
     }
 
-    public void printAllIframes() {
-        List<WebElement> iframes = driver.findElements(By.tagName("iframe"));
-        System.out.println("Founddddddddddddd " + iframes.size() + " iframes:");
-        for (WebElement iframe : iframes) {
-            System.out.println("iframe titleeeeeeeeeeeeeeeeeeeeeeeee: " + iframe.getAttribute("title"));
+    public void retryingClick(WebElement element, int maxAttempts) throws InterruptedException {
+        int attempts = 0;
+        while (attempts < maxAttempts) {
+            try {
+                executor.executeScript("arguments[0].scrollIntoView({block: 'center'});", element);
+                wait.until(ExpectedConditions.elementToBeClickable(element)).click();
+                return;
+            } catch (org.openqa.selenium.StaleElementReferenceException | org.openqa.selenium.ElementClickInterceptedException e) {
+                testContext.getLogger().warn("Retrying click due to exception: {} (attempt {}/{})", e.getClass().getSimpleName(), attempts + 1, maxAttempts);
+                attempts++;
+                Thread.sleep(1000);
+            }
         }
+        throw new RuntimeException("Failed to click element after " + maxAttempts + " attempts: " + element);
+    }
+
+    public void clearFieldUsingKeys(WebElement element) {
+        // Clear the field by sending Ctrl+A then Delete
+        element.sendKeys(Keys.chord(Keys.CONTROL, "a"));
+        element.sendKeys(Keys.DELETE);
+    }
+
+    public void clickUsingKeys(WebElement element) {
+        actions.moveToElement(element).click().perform();
+    }
+
+    public void waitForModalToDisappear() {
+        By modal = By.cssSelector(
+                "div.slds-modal__container, div.modal-container, .slds-modal, .slds-backdrop, .slds-modal--open, .slds-fade-in-open"
+        );
+
+        // Wait for all overlays to be invisible
+        wait.until(driver -> {
+            List<WebElement> overlays = driver.findElements(modal);
+            for (WebElement overlay : overlays) {
+                if (overlay.isDisplayed()) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
+
+    public void scrollToEndOfPageUsingKeys() throws InterruptedException {
+        actions.sendKeys(Keys.END).perform();
+        Thread.sleep(1000);
+    }
+
+    public void clickOnElementUsingKeys(WebElement element) throws InterruptedException {
+        actions.moveToElement(element).click().build().perform();
+        Thread.sleep(500);
+    }
+
+    public void verifyPageTitle(String expectedTitle, int maxWaitSeconds) throws InterruptedException {
+        int waited = 0;
+        while (waited < maxWaitSeconds) {
+            String actualTitle = getPageTitle();
+            if (actualTitle != null && actualTitle.contains(expectedTitle)) {
+                logger.info("Expected page title found: {}", actualTitle);
+                return;
+            }
+            Thread.sleep(1000);
+            waited++;
+        }
+        logger.error("Expected page title '{}' not found after {} seconds. Last title: {}", expectedTitle, maxWaitSeconds, getPageTitle());
+    }
+
+    public String generateRandomUSPhone() {
+        java.util.Random r = new java.util.Random();
+        int area = 200 + r.nextInt(800);      // 200-999
+        int exchange = 200 + r.nextInt(800);  // 200-999
+        int line = 1000 + r.nextInt(9000);    // 1000-9999
+        return String.format("+1 (%03d) %03d-%04d", area, exchange, line);
+    }
+
+    public String generateRandomEmail(String baseEmail, String suffix) {
+        String defaultDomain = "example.com";
+        if (baseEmail == null || baseEmail.isBlank()) {
+            return "lead.auto_" + suffix + "@" + defaultDomain;
+        }
+        int at = baseEmail.indexOf('@');
+        if (at < 0) {
+            return "lead.auto_" + suffix + "@" + defaultDomain;
+        }
+        String local = baseEmail.substring(0, at);
+        String domain = baseEmail.substring(at + 1).trim();
+        if (domain.isEmpty()) domain = defaultDomain;
+        return local + "_" + suffix + "@" + domain;
+    }
+
+    public void preScrollToBottom() throws InterruptedException {
+        for (int i = 0; i < 3; i++) {
+            try {
+                testContext.getCommonUtils().scrollToEndOfPageUsingKeys();
+            } catch (Exception ignored) {
+                executor.executeScript("window.scrollTo(0, document.body.scrollHeight);");
+            }
+            try {
+                executor.executeScript(
+                        "document.querySelectorAll('*').forEach(function(e){var s=getComputedStyle(e);" +
+                                "if(s && (s.overflowY==='auto'||s.overflowY==='scroll')){e.scrollTop=e.scrollHeight;}});"
+                );
+            } catch (Exception ignored) {}
+            Thread.sleep(300);
+        }
+    }
+
+    public void scrollIntoViewCenter(WebElement element) throws InterruptedException {
+        executor.executeScript("arguments[0].scrollIntoView({block:'center', inline:'nearest'});", element);
+        Thread.sleep(300);
+    }
+
+    public void scrollIntoViewIfNeeded(WebElement element) throws InterruptedException {
+        executor.executeScript(
+                "const el=arguments[0],r=el.getBoundingClientRect();" +
+                        "if(r.top<0||r.bottom>window.innerHeight){el.scrollIntoView({block:'center',inline:'nearest'});}"+
+                        "try{el.focus({preventScroll:true});}catch(e){}",
+                element
+        );
+        Thread.sleep(200);
+    }
+
+    public void clickWhenReadyCentered(WebElement element) throws InterruptedException {
+        scrollIntoViewIfNeeded(element);
+        wait.until(ExpectedConditions.elementToBeClickable(element));
+        try {
+            actions.moveToElement(element).click().perform();
+        } catch (Exception e) {
+            executor.executeScript("arguments[0].click();", element);
+        }
+        Thread.sleep(200);
     }
 }
