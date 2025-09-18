@@ -2,9 +2,9 @@ package com.jllt.pages.wdsf;
 
 import com.jllt.base.basePage;
 import com.jllt.scenarioContext.context;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebElement;
+import com.jllt.utils.extentReportListener;
+import com.jllt.utils.webDriverManager;
+import org.openqa.selenium.*;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 
@@ -13,9 +13,9 @@ import java.util.List;
 import java.util.Map;
 
 public class accountsWdsfPage extends basePage {
-    private JavascriptExecutor executor;
+    private final JavascriptExecutor executor;
 
-    @FindBy(xpath = "//one-app-nav-bar-item-root/a/span[text()='Accounts']/parent::*/parent::*")
+    @FindBy(xpath = "//span[text()='Accounts']/parent::a")
     private WebElement AccountsTab;
 
     @FindBy(xpath = "//a[@title='New']")
@@ -69,7 +69,7 @@ public class accountsWdsfPage extends basePage {
     @FindBy(xpath = "//button[@name='countryValue']")
     private WebElement CountryField;
 
-    @FindBy(xpath = "//span[text()='Select Country']")
+    @FindBy(xpath = "//span[text()='Country']")
     private WebElement CountryDropdownOnAccountSearch;
 
     @FindBy(xpath = "//button[text()='Submit Account Request']")
@@ -84,6 +84,24 @@ public class accountsWdsfPage extends basePage {
     @FindBy(xpath = "//button[@name='dnbaccountSector']")
     private WebElement Sector;
 
+    @FindBy(xpath = "//button[text()='Create Account']")
+    private WebElement CreateAccountButton;
+
+    @FindBy(xpath = "//span[text()='Account Name']/parent::div/..//lightning-formatted-text[text()]")
+    private WebElement AccountNameOnLandingPage;
+
+    @FindBy(xpath = "//span[text()='Account Source']/parent::div/..//lightning-formatted-text[text()]")
+    private WebElement AccountSourceOnLandingPage;
+
+    @FindBy(xpath = "//span[text()='Industry']/parent::div/..//lightning-formatted-text[text()]")
+    private WebElement IndustryOnLandingPage;
+
+    @FindBy(xpath = "(//span[text()='Account Record Type']/parent::div/following-sibling::div//span[text()])[1]")
+    private WebElement AccountRecordTypeOnLandingPage;
+
+    @FindBy(xpath = "//span[text()='Account Region']/parent::div/..//lightning-formatted-text[text()]")
+    private WebElement AccountRegionOnLandingPage;
+
     public accountsWdsfPage(context testContext) {
         super(testContext);
         this.testContext = testContext;
@@ -92,59 +110,97 @@ public class accountsWdsfPage extends basePage {
         this.wait = testContext.getWait();
     }
 
+    private String getScreenshotBase64() {
+        return ((TakesScreenshot) webDriverManager.getDriver()).getScreenshotAs(OutputType.BASE64);
+    }
+
     public void navigateToAccountsTab() throws InterruptedException {
         testContext.getLogger().info("Navigating to Accounts tab");
         testContext.getDriver().switchTo().defaultContent();
         testContext.getDriver().manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-        Thread.sleep(2000);
-        wait.until(ExpectedConditions.elementToBeClickable(AccountsTab)).click();
+        testContext.getCommonUtils().waitForPageLoad();
+
+        testContext.getGenericWdsfPage().waitForToastMessageToDisappear();
+        Thread.sleep(500);
+        wait.until(ExpectedConditions.elementToBeClickable(AccountsTab));
+
+        // Try using JavaScript click instead of direct WebElement click
+        try {
+            JavascriptExecutor executor = (JavascriptExecutor) driver;
+            executor.executeScript("arguments[0].click();", AccountsTab);
+        } catch (Exception e) {
+            testContext.getLogger().warn("JS click failed, trying direct click: {}", e.getMessage());
+            testContext.getCommonUtils().retryingClick(AccountsTab, 3);
+        }
+
+        Thread.sleep(1000);
+        //wait.until(ExpectedConditions.elementToBeClickable(AccountsTab)).click();
+        //wait.until(ExpectedConditions.elementToBeClickable(AccountsTab));
+        //executor.executeScript("arguments[0].click();", AccountsTab);
         testContext.getLogger().info("Clicked on Accounts Tab");
-        Thread.sleep(3000);
+        testContext.getCommonUtils().waitForPageLoad();
+        Thread.sleep(500);
     }
 
     public void clickNewAccount(String recordType) throws InterruptedException {
         testContext.getLogger().info("Clicking New Account button and selecting record type: {}", recordType);
 
-        // Click the New button
-        wait.until(ExpectedConditions.elementToBeClickable(newAccountButton)).click();
-        testContext.getLogger().info("Clicked on New Account button");
+        Thread.sleep(1000);
+        wait.until(ExpectedConditions.visibilityOf(newAccountButton));
+        Thread.sleep(500);
+        if(newAccountButton.isDisplayed()){
+            testContext.getCommonUtils().jsClickToElement(newAccountButton);
+        }else {
+            testContext.getCommonUtils().retryingClick(newAccountButton,3);
+            testContext.getLogger().info("Clicked on New Account button");
+        }
         Thread.sleep(500);
 
-        if (isRecordTypeSelectionPresent()) {
-            if (recordType != null && !recordType.isEmpty()) {
-                selectAccountRecordType(recordType);
+        boolean attempted = false;
+        try {
+            if (isRecordTypeSelectionPresent()) {
+                selectAccountRecordType(recordType);  // uses ONLY your XPaths
+                attempted = true;
             }
-        } else {
-            testContext.getLogger().info("Record type selection screen not shown - continuing with account creation flow");
+        } catch (Exception e) {
+            testContext.getLogger().warn("Record type presence path failed: {}", e.getMessage());
         }
-        /*// Select the record type if specified
-        if (recordType != null && !recordType.isEmpty()) {
-            selectAccountRecordType(recordType);
-        }*/
+        if (!attempted) {
+            try {
+                // Fallback: still try to select using your XPaths
+                selectAccountRecordType(recordType);
+            } catch (Exception e) {
+                testContext.getLogger().info("Record type selection not available or failed; continuing. Reason: {}", e.getMessage());
+            }
+        }
+
+        wait.until(ExpectedConditions.visibilityOf(SearchAndSelectAccountTxt));
     }
 
-    private boolean isRecordTypeSelectionPresent() {
-        try {
+    public boolean isRecordTypeSelectionPresent() throws InterruptedException {
+        Thread.sleep(1000);
+        return !driver.findElements(By.xpath("//div[@class='changeRecordTypeRow']")).isEmpty();
+        /*try {
             return wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//div[@class='changeRecordTypeRow']"))) != null;
         } catch (Exception e) {
             testContext.getLogger().info("Record type selection dialog not found");
             return false;
-        }
+        }*/
     }
 
     public void SearchAndSelectAccount(String accountName) throws InterruptedException {
         testContext.getLogger().info("Attempting to search and select account: {}", accountName);
         testContext.getDriver().switchTo().defaultContent();
         testContext.getDriver().manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-        Thread.sleep(500);
+        Thread.sleep(200);
         wait.until(ExpectedConditions.visibilityOf(SearchAndSelectAccountTxt));
+        SearchAndSelectAccountTxt.clear();
         SearchAndSelectAccountTxt.sendKeys(accountName);
         logger.info("Entered account name in search field");
         Thread.sleep(1000);
 
-        //,................................................
         selectCountryDropdownOnAccountSearch("United States");
-        Thread.sleep(1000);
+        Thread.sleep(500);
 
         wait.until(ExpectedConditions.elementToBeClickable(SearchBtn)).click();
         testContext.getLogger().info("Clicked on Search button");
@@ -165,7 +221,7 @@ public class accountsWdsfPage extends basePage {
         testContext.getLogger().info("Filling New Account Request Form");
         testContext.getDriver().manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
 
-        String randomSuffix = testContext.getCommonUtils().generateRandomChars(6);
+        String randomSuffix = testContext.getCommonUtils().generateRandomChars(7);
 
         String accountName = accountDetails.get("Account Name")+ "_" + randomSuffix;
         testContext.getLogger().info("Account: {}", accountName);
@@ -174,7 +230,7 @@ public class accountsWdsfPage extends basePage {
         testContext.setContextData("accountName", accountName);
         testContext.getLogger().info("Set Company Name: {}", accountName);
 
-        Thread.sleep(5000);
+        Thread.sleep(2000);
         AccountNameField.clear();
         fillFormField(AccountNameField, accountName, "Account Name");
         //fillFormField(RegionField, accountDetails.get("Region"), "Region");
@@ -182,7 +238,7 @@ public class accountsWdsfPage extends basePage {
         fillFormField(CityField, accountDetails.get("City"), "City");
         fillFormField(StateField, accountDetails.get("State/Province"), "State/Province");
         //fillFormField(CountryField, accountDetails.get("Country"), "Country");
-        selectcountryField(accountDetails.get("Country"));
+        selectCountryField(accountDetails.get("Country"));
 
         //Select Region
         try {
@@ -229,17 +285,17 @@ public class accountsWdsfPage extends basePage {
         testContext.getLogger().info("Entered {}: {}", fieldName, value);
     }
 
-    private void selectcountryField(String country){
+    private void selectCountryField(String country){
         try {
             testContext.getLogger().info("Setting Country field with JavaScript: {}", country);
             executor.executeScript("arguments[0].scrollIntoView({block: 'center'});", CountryField);
-            Thread.sleep(1000);
+            Thread.sleep(500);
             executor.executeScript("arguments[0].click();", CountryField);
-            Thread.sleep(2000);
+            Thread.sleep(1000);
             WebElement countryOption = driver.findElement(By.xpath("//lightning-base-combobox-item//span[@title='" + country + "']"));
             executor.executeScript("arguments[0].click();", countryOption);
             testContext.getLogger().info("Selected Country: {}", country);
-            Thread.sleep(3000); // Give UI time to settle
+            Thread.sleep(1000);
         } catch (Exception e) {
             testContext.getLogger().error("Error setting Country: {}", e.getMessage());
         }
@@ -269,7 +325,7 @@ public class accountsWdsfPage extends basePage {
     }
 
     private void selectSectorDropdown(String Val) throws InterruptedException {
-        testContext.getCommonUtils().jsScrollDown(Sector);
+        testContext.getCommonUtils().jsScrollToElement(Sector);
         executor.executeScript("arguments[0].click();", Sector);
         Thread.sleep(1000);
         WebElement Option = driver.findElement(By.xpath("//lightning-base-combobox-item//span[@title='" + Val + "']"));
@@ -287,16 +343,14 @@ public class accountsWdsfPage extends basePage {
         testContext.getLogger().info("Attempting to select record type: {}", recordType);
 
         try {
-            wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//div[@class='changeRecordTypeRow']")));
-            Thread.sleep(1000);
-            WebElement recordTypeElement = driver.findElement(By.xpath("//div[@class='changeRecordTypeRow']//../following-sibling::div/span[text()='" + recordType + "']"));
-
-            wait.until(ExpectedConditions.elementToBeClickable(recordTypeElement));
+            By option = By.xpath("//div[@class='changeRecordTypeRow']//../following-sibling::div/span[text()='" + recordType + "']"
+                    + " | //div[@class='changeRecordTypeRow']//../lightning-input//span[text()='" + recordType + "']");
+            WebElement recordTypeElement = wait.until(ExpectedConditions.elementToBeClickable(option));
             executor.executeScript("arguments[0].click();", recordTypeElement);
             testContext.getLogger().info("Selected record type: {}", recordType);
 
-            WebElement nextButton = driver.findElement(By.xpath("//button/span[text()='Next']"));
-            wait.until(ExpectedConditions.elementToBeClickable(nextButton));
+            By nextBtn = By.xpath("//button/span[text()='Next'] | //button[text()='Next']");
+            WebElement nextButton = wait.until(ExpectedConditions.elementToBeClickable(nextBtn));
             executor.executeScript("arguments[0].click();", nextButton);
             testContext.getLogger().info("Clicked Next button after record type selection");
 
@@ -306,39 +360,6 @@ public class accountsWdsfPage extends basePage {
             throw e;
         }
     }
- /*   public void clickOnDAndBAccountName() throws InterruptedException {
-        testContext.getLogger().info("Looking for D&B accounts in search results");
-
-        // Wait for table to be visible
-        Thread.sleep(15000);
-        //wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//table/tbody")));
-
-        List<WebElement> rows = driver.findElements(By.xpath("//table/tbody/tr"));
-        testContext.getLogger().info("Found " + rows.size() + " rows in results table");
-
-        WebElement element = driver.findElement(By.xpath("//table/tbody/tr/td[1]//button"));
-        JavascriptExecutor executor = (JavascriptExecutor)driver;
-        executor.executeScript("arguments[0].click();", element);
-        testContext.getLogger().info("clicked on first row");
-        Thread.sleep(250000);
-
-        *//*if (rows.size() > 0) {
-            // If we found rows, click on the first one (most likely the correct match)
-            WebElement firstRow = rows.get(0);
-            try {
-                WebElement accountNameCell = firstRow.findElement(By.xpath(".//td[1]"));
-                wait.until(ExpectedConditions.elementToBeClickable(accountNameCell));
-                executor.executeScript("arguments[0].click();", accountNameCell);
-                testContext.getLogger().info("Clicked on first account in search results");
-            } catch (Exception e) {
-                testContext.getLogger().error("Could not click on account: " + e.getMessage());
-                throw e;
-            }
-        } else {
-            testContext.getLogger().error("No account rows found in search results");
-            throw new NoSuchElementException("No accounts found in D&B search results");
-        }*//*
-    }*/
 
     public String clickOnDAndBAccountName() throws InterruptedException {
         // WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
@@ -387,6 +408,127 @@ public class accountsWdsfPage extends basePage {
         return clickedAccountName;
     }
 
+    public void createAccountFromDnBSearch() throws InterruptedException {
+        // Wait for D&B results to load
+        Thread.sleep(1000);
+
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//table//th[@data-label='Exist in SF']")));
+        List<WebElement> rows = driver.findElements(By.xpath("//table/tbody/tr/th[@data-label='Exist in SF']"));
+        testContext.getLogger().info("Found {} rows in results table.", rows.size());
+
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//table/tbody/tr/th[@data-label='Exist in SF']/..//button[@title='Create New Account']")));
+        List<WebElement> plusButtons = driver.findElements(By.xpath("//table/tbody/tr/th[@data-label='Exist in SF']/..//button[@title='Create New Account']"));
+        testContext.getLogger().info("Found {} Create New Account buttons", plusButtons.size());
+
+        if (plusButtons.isEmpty()) {
+            throw new RuntimeException("No D&B search results with a '+' (Create New Account) button were found. Check your search criteria or page state.");
+        }
+
+        boolean clicked = false;
+        for (WebElement plusBtn : plusButtons) {
+            if (plusBtn.isDisplayed() && plusBtn.isEnabled()) {
+                try {
+                    By overlay = By.cssSelector(".slds-utility-bar, .slds-backdrop, .slds-modal__container");
+                    wait.until(ExpectedConditions.invisibilityOfElementLocated(overlay));
+                } catch (Exception ignored) {}
+
+                try {
+                    executor.executeScript("arguments[0].scrollIntoView({block: 'center'});", plusBtn);
+                    Thread.sleep(500);
+                    testContext.getLogger().info("Scrolling to and clicking on Create New Account button");
+                    //executor.executeScript("arguments[0].click();", plusBtn);
+                    testContext.getCommonUtils().jsClickToElement(plusBtn);
+                    wait.until(ExpectedConditions.visibilityOf(AccountNameField));
+                    clicked = true;
+                    break;
+                } catch (Exception e) {
+                    testContext.getLogger().warn("Failed to click plus button: {}", e.getMessage());
+                }
+            }
+        }
+
+        if (!clicked) {
+            throw new RuntimeException("Could not click any 'Create New Account' (+) button after trying all available.");
+        }
+    }
+
+    /*public void fillAndCreateAccount(Map<String, String> accountDetails) throws InterruptedException {
+        String randomSuffix = testContext.getCommonUtils().generateRandomChars(6);
+        String accountName = accountDetails.get("Account Name") + "_" + randomSuffix;
+        testContext.getLogger().info("Filling in account details with random suffix: {}", accountName);
+
+        // Clear and fill Account Name
+        wait.until(ExpectedConditions.visibilityOf(AccountNameField));
+        //testContext.getCommonUtils().clearFieldUsingKeys(AccountNameField);
+        AccountNameField.clear();
+        AccountNameField.sendKeys(accountName);
+
+        //Select Region
+        wait.until(ExpectedConditions.elementToBeClickable(RegionField));
+        selectRegionDropdown(accountDetails.get("Region"));
+        testContext.getLogger().info("Selected Region for D&B account creation: {}", accountDetails.get("Region"));
+
+
+        //Select Industry
+        selectIndustryDropdown(accountDetails.get("Industry"));
+        testContext.getLogger().info("Selected Industry for D&B account creation: {}", accountDetails.get("Industry"));
+
+        //Select Currency
+            selectCurrencyDropdown(accountDetails.get("Currency"));
+            testContext.getLogger().info("Selected Currency for D&B account creation: {}", accountDetails.get("Currency"));
+        Thread.sleep(5000);
+
+        // Click Create Account button
+        wait.until(ExpectedConditions.visibilityOf(CreateAccountButton));
+        //CreateAccountButton.click();
+        testContext.getCommonUtils().clickOnElementUsingKeys(CreateAccountButton);
+        testContext.getCommonUtils().jsClickToElement(CreateAccountButton);
+        Thread.sleep(2000);
+        testContext.setContextData("accountName", accountName);
+        testContext.getLogger().info("Clicked Create Account button with account name: {}", accountName);
+    }*/
+
+    public void fillAndCreateAccount(Map<String, String> accountDetails) throws InterruptedException {
+        String accountName;
+        Object ctx = testContext.getContextData("accountName");
+        if (ctx != null && !String.valueOf(ctx).trim().isEmpty()) {
+            accountName = String.valueOf(ctx).trim();
+            testContext.getLogger().info("Using accountName from context for D&B account creation: {}", accountName);
+        } else {
+            String randomSuffix = testContext.getCommonUtils().generateRandomChars(6);
+            accountName = accountDetails.get("Account Name") + "_" + randomSuffix;
+            testContext.getLogger().info("Context accountName not found; generating new: {}", accountName);
+            testContext.setContextData("accountName", accountName);
+        }
+
+        // Clear and fill Account Name
+        wait.until(ExpectedConditions.visibilityOf(AccountNameField));
+        AccountNameField.clear();
+        AccountNameField.sendKeys(accountName);
+
+        // Select Region
+        wait.until(ExpectedConditions.elementToBeClickable(RegionField));
+        selectRegionDropdown(accountDetails.get("Region"));
+        testContext.getLogger().info("Selected Region for D&B account creation: {}", accountDetails.get("Region"));
+
+        // Select Industry
+        selectIndustryDropdown(accountDetails.get("Industry"));
+        testContext.getLogger().info("Selected Industry for D&B account creation: {}", accountDetails.get("Industry"));
+
+        // Select Currency
+        selectCurrencyDropdown(accountDetails.get("Currency"));
+        testContext.getLogger().info("Selected Currency for D&B account creation: {}", accountDetails.get("Currency"));
+        Thread.sleep(5000);
+
+        // Click Create Account button
+        wait.until(ExpectedConditions.visibilityOf(CreateAccountButton));
+        testContext.getCommonUtils().clickOnElementUsingKeys(CreateAccountButton);
+        testContext.getCommonUtils().jsClickToElement(CreateAccountButton);
+        Thread.sleep(2000);
+        testContext.setContextData("accountName", accountName);
+        testContext.getLogger().info("Clicked Create Account button with account name: {}", accountName);
+    }
+
     public String getConfirmationMessage() {
         wait.until(ExpectedConditions.visibilityOfAllElements(confirmationMessageParts));
 
@@ -404,7 +546,7 @@ public class accountsWdsfPage extends basePage {
         wait.until(ExpectedConditions.elementToBeClickable(SubmitButton));
         executor.executeScript("arguments[0].click();", SubmitButton);
         testContext.getLogger().info("Clicked Submit button");
-        Thread.sleep(2000);
+        Thread.sleep(1500);
     }
 
     public void cancelButton() {
@@ -418,7 +560,7 @@ public class accountsWdsfPage extends basePage {
     }
 
     public void verifyAccountLandingPageTitle() throws InterruptedException {
-        Thread.sleep(2000);
+        Thread.sleep(1500);
         String expectedAccountName = testContext.getContextData("accountName").toString();
         String expectedTitle = expectedAccountName + " | Account | Salesforce";
 
@@ -439,5 +581,79 @@ public class accountsWdsfPage extends basePage {
             testContext.getDriver().quit();
         }
         testContext.getLogger().info("AccountsPage teardown completed");
+    }
+
+    // ADDED: consolidated helper for account creation
+    public void createAccountRequest(Map<String, String> accountDetails, String recordType, String searchAccountName) throws InterruptedException {
+        testContext.getLogger().info("Starting Account creation helper method");
+        navigateToAccountsTab();
+        clickNewAccount(recordType);
+
+        String searchName = (searchAccountName == null || searchAccountName.isBlank())
+                ? accountDetails.getOrDefault("Search Account Name", accountDetails.getOrDefault("Account Name", ""))
+                : searchAccountName;
+        if (searchName != null && !searchName.isBlank()) {
+            SearchAndSelectAccount(searchName);
+        }
+
+        //SearchAndSelectAccount(searchAccountName);
+        clickNewAccountRequestFormButton();
+        CreateNewAccountRequestForm(accountDetails);
+        setSubmitButton();
+        verifyAccountLandingPageTitle();
+        testContext.getLogger().info("Account created successfully via helper method");
+    }
+
+    public void verifyAccountField(String fieldName, String expectedValue) throws InterruptedException {
+        String label = fieldName.equalsIgnoreCase("Account") ? "Account Name"
+                : fieldName.equalsIgnoreCase("Region") ? "Account Region"
+                : fieldName;
+
+        if ((expectedValue == null || expectedValue.isBlank()) && fieldName.equalsIgnoreCase("Account")) {
+            Object v = testContext.getContextData("accountName");
+            expectedValue = v == null ? "" : v.toString().trim();
+        }
+
+        WebElement valueEl;
+
+        if (label.equals("Account Record Type") || label.equals("Record Type")) {
+            try {
+                executor.executeScript("arguments[0].scrollIntoView({block:'center'});", AccountRecordTypeOnLandingPage);
+            } catch (Exception ignored) {}
+            valueEl = wait.until(ExpectedConditions.visibilityOf(AccountRecordTypeOnLandingPage));
+        } else {
+            switch (label) {
+                case "Account Name":
+                    valueEl = AccountNameOnLandingPage;
+                    break;
+                case "Account Region":
+                    valueEl = AccountRegionOnLandingPage;
+                    break;
+                case "Industry":
+                    valueEl = IndustryOnLandingPage;
+                    break;
+                case "Account Source":
+                    valueEl = AccountSourceOnLandingPage;
+                    break;
+                default:
+                    String baseXpath = String.format("//span[text()='%s']/parent::div/..", label);
+                    By genericValue = By.xpath(baseXpath + "//lightning-formatted-text[normalize-space()] | " + baseXpath + "//span[normalize-space()]");
+                    valueEl = wait.until(ExpectedConditions.visibilityOfElementLocated(genericValue));
+            }
+
+            try {
+                executor.executeScript("arguments[0].scrollIntoView({block:'center'});", valueEl);
+            } catch (Exception ignored) {}
+            wait.until(ExpectedConditions.visibilityOf(valueEl));
+        }
+
+        String actual = valueEl.getText() == null ? "" : valueEl.getText().replace('\u00A0',' ').trim();
+        String expected = expectedValue == null ? "" : expectedValue.replace('\u00A0',' ').trim();
+
+        testContext.getLogger().info("Verifying '{}' → Expected: '{}', Actual: '{}'", label, expected, actual);
+
+        if (!actual.equals(expected)) {
+            throw new AssertionError("Mismatch for '" + label + "'. Expected: '" + expected + "', Actual: '" + actual + "'");
+        }
     }
 }

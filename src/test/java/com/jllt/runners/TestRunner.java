@@ -27,7 +27,7 @@ import java.io.IOException;
                 "com.aventstack.extentreports.cucumber.adapter.ExtentCucumberAdapter:",
                 "html:target/cucumber-reports/report.html"
         },
-        tags = "@account or @contact or @opportunity"
+        tags = "@account or @contact or @opportunity or @lead or @leadConversion"
 )
 public class TestRunner extends AbstractTestNGCucumberTests {
     @Override

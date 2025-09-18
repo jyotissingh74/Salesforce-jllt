@@ -2,9 +2,9 @@ package com.jllt.pages.wdsf;
 
 import com.jllt.base.basePage;
 import com.jllt.scenarioContext.context;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebElement;
+import com.jllt.utils.extentReportListener;
+import com.jllt.utils.webDriverManager;
+import org.openqa.selenium.*;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.slf4j.LoggerFactory;
@@ -48,6 +48,28 @@ public class contactsWdsfPage extends basePage {
     @FindBy(xpath = "//button[@name='SaveEdit']")
     private WebElement saveEdit;
 
+    @FindBy(xpath = "(//span[text()='Name']/parent::div/..//lightning-formatted-name)")
+    private WebElement contactNameOnLandingPage;
+
+    @FindBy(xpath = "(//span[text()='Account Name']/parent::div/..//a//span)[3]")
+    private WebElement accountNameOnContactLandingPage;
+
+    @FindBy(xpath = "//span[text()='Lead Source']/parent::div/..//lightning-formatted-text")
+    private WebElement leadSourceOnContactLandingPage;
+
+    @FindBy(xpath = "//span[text()='Edit Business Group']")
+    private WebElement editBusinessGroup;
+
+    @FindBy(xpath = "//button[@aria-label='Business Group']")
+    private WebElement businessGroupButton;
+
+    @FindBy(xpath = "//button[@aria-label='Sub Business Group']")
+    private WebElement subBusinessGroupButton;
+
+    @FindBy(xpath = "//button[@name='CancelEdit']")
+    private WebElement cancelEdit;
+
+
     public contactsWdsfPage(context testContext) {
         super(testContext);
         this.testContext = testContext;
@@ -56,18 +78,38 @@ public class contactsWdsfPage extends basePage {
         this.executor = (JavascriptExecutor) driver;
     }
 
-    public void clickNewContact() throws InterruptedException {
+    private String getScreenshotBase64() {
+        return ((TakesScreenshot) webDriverManager.getDriver()).getScreenshotAs(OutputType.BASE64);
+    }
+
+    public void navigateToContactsTab() throws InterruptedException {
         testContext.getLogger().info("Attempting to click on New Contact");
         testContext.getDriver().switchTo().defaultContent();
         testContext.getDriver().manage().timeouts().pageLoadTimeout(Duration.ofSeconds(60));
         Thread.sleep(5000);
         wait.until(ExpectedConditions.elementToBeClickable(contactsTab)).click();
+        Thread.sleep(200);
+        extentReportListener.addScreenshotToStep("Click on Contacts Tab", getScreenshotBase64());
         testContext.getLogger().info("Clicked on Contacts Tab");
         testContext.getDriver().manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
         Thread.sleep(2000);
+    }
+
+    public void clickNewContact(String recordType) throws InterruptedException {
+        testContext.getLogger().info("Clicking New Contact button and selecting record type: {}", recordType);
+        // Click the New button
         wait.until(ExpectedConditions.elementToBeClickable(newContactButton)).click();
         testContext.getLogger().info("Clicked on New Contact button");
         Thread.sleep(1000);
+        extentReportListener.addScreenshotToStep("Click on New Contact", getScreenshotBase64());
+
+        if (testContext.getAccountsWdsfPage().isRecordTypeSelectionPresent()) {
+            if (recordType != null && !recordType.isEmpty()) {
+                selectContactRecordType(recordType);
+            }
+        } else {
+            testContext.getLogger().info("Record type selection screen not shown - continuing with contacts creation flow");
+        }
     }
 
     public void CreateNewContact(Map<String, String> contactDetails) throws InterruptedException {
@@ -94,12 +136,16 @@ public class contactsWdsfPage extends basePage {
         fillNewContactInfo(phone, contactDetails.get("Phone"), "Phone");
         fillNewContactInfo(email, contactDetails.get("Email"), "Email");
         fillNewContactInfo(mobile, contactDetails.get("Mobile"), "Mobile");
+        //Thread.sleep(1000);
+        //extentReportListener.addScreenshotToStep("Fill the fields", getScreenshotBase64());
 
-        try {
-            selectContactJobRole(contactDetails.get("Contact Job Role"));
-            testContext.getLogger().info("Selected Contact Job Role: {}", contactDetails.get("Contact Job Role"));
-        } catch (InterruptedException e) {
-            testContext.getLogger().error("Error selecting Contact Job Role: {}", e.getMessage());
+        if (testContext.getCommonUtils().isElementDisplayed(contactJobRole)){
+            try {
+                selectContactJobRole(contactDetails.get("Contact Job Role"));
+                testContext.getLogger().info("Selected Contact Job Role: {}", contactDetails.get("Contact Job Role"));
+            } catch (InterruptedException e) {
+                testContext.getLogger().error("Error selecting Contact Job Role: {}", e.getMessage());
+            }
         }
 
         testContext.setContextData("contactName", contactDetails.get("First Name") + " " + contactName);
@@ -110,9 +156,11 @@ public class contactsWdsfPage extends basePage {
         }*/
     }
 
-    private void fillNewContactInfo(WebElement field, String value, String fieldName) {
+    private void fillNewContactInfo(WebElement field, String value, String fieldName) throws InterruptedException {
         wait.until(ExpectedConditions.visibilityOf(field)).sendKeys(value);
         testContext.getLogger().info("Entered {}: {}", fieldName, value);
+        Thread.sleep(1000);
+        extentReportListener.addScreenshotToStep("Fill the form", getScreenshotBase64());
     }
 
     public void selectContactJobRole(String Val) throws InterruptedException {
@@ -135,6 +183,7 @@ public class contactsWdsfPage extends basePage {
                 By.xpath("//div[@class='isModal inlinePanel oneRecordActionWrapper']//lightning-base-combobox-formatted-text[@title='" + val + "']/..")));
         executor.executeScript("arguments[0].click();", Option);
         logger.info("Company selected successfully: {}", val);
+        extentReportListener.addScreenshotToStep("Select Account", getScreenshotBase64());
     }
 
     public void setSaveEdit() throws InterruptedException {
@@ -158,12 +207,129 @@ public class contactsWdsfPage extends basePage {
             throw new AssertionError("Contact landing page title mismatch. Expected: " + expectedTitle + ", but got: " + actualTitle);
         }
         testContext.getLogger().info("Contact landing page title verified successfully.");
+        extentReportListener.addScreenshotToStep("Verify Contact Landing Page   ", getScreenshotBase64());
     }
 
-    public void tearDown() {
-        if (testContext.getDriver() != null) {
-            testContext.getDriver().quit();
+    private void selectContactRecordType(String recordType) throws InterruptedException {
+        testContext.getLogger().info("Attempting to select record type: {}", recordType);
+
+        try {
+            wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//div[@class='changeRecordTypeRow']")));
+            Thread.sleep(1000);
+            WebElement recordTypeElement = driver.findElement(By.xpath("//div[@class='changeRecordTypeRow']//../following-sibling::div/span[text()='" + recordType + "'] | //div[@class='changeRecordTypeRow']//../lightning-input//span[text()='" + recordType + "']"));
+
+            wait.until(ExpectedConditions.elementToBeClickable(recordTypeElement));
+            executor.executeScript("arguments[0].click();", recordTypeElement);
+            testContext.getLogger().info("Selected record type: {}", recordType);
+
+            WebElement nextButton = driver.findElement(By.xpath("//button/span[text()='Next']"));
+            wait.until(ExpectedConditions.elementToBeClickable(nextButton));
+            executor.executeScript("arguments[0].click();", nextButton);
+            testContext.getLogger().info("Clicked Next button after record type selection");
+
+            Thread.sleep(500);
+        } catch (Exception e) {
+            testContext.getLogger().error("Error selecting record type: {}", e.getMessage());
+            throw e;
         }
-        testContext.getLogger().info("ContactsPage teardown completed");
+    }
+
+    public void verifyContactField(String fieldName, String expectedValue) throws InterruptedException {
+        String label = fieldName == null ? "" : fieldName.trim();
+
+        // Default expected values from context when blank in data table
+        if (expectedValue == null || expectedValue.isBlank()) {
+            if (label.equalsIgnoreCase("Name")) {
+                Object v = testContext.getContextData("contactName");
+                expectedValue = v == null ? "" : v.toString().trim();
+            } else if (label.equalsIgnoreCase("Account Name") || label.equalsIgnoreCase("Account")) {
+                Object v = testContext.getContextData("accountName");
+                expectedValue = v == null ? "" : v.toString().trim();
+            }
+        }
+
+        WebElement valueEl;
+        switch (label) {
+            case "Name":
+                valueEl = contactNameOnLandingPage; // (//span[text()='Name']/parent::div/..//lightning-formatted-name)
+                break;
+            case "Account Name":
+            case "Account":
+                valueEl = accountNameOnContactLandingPage; // (//span[text()='Account Name']/parent::div/..//a//span)[3]
+                break;
+            case "Lead Source":
+                valueEl = leadSourceOnContactLandingPage; // //span[text()='Lead Source']/parent::div/..//lightning-formatted-text
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown field: " + label);
+        }
+
+        try { executor.executeScript("arguments[0].scrollIntoView({block:'center'});", valueEl); } catch (Exception ignored) {}
+        wait.until(ExpectedConditions.visibilityOf(valueEl));
+
+        String actual = valueEl.getText() == null ? "" : valueEl.getText().replace('\u00A0',' ').trim();
+        String expected = expectedValue == null ? "" : expectedValue.replace('\u00A0',' ').trim();
+
+        testContext.getLogger().info("Verifying '{}' → Expected: '{}', Actual: '{}'", label, expected, actual);
+        if (!actual.equals(expected)) {
+            throw new AssertionError("Mismatch for '" + label + "'. Expected: '" + expected + "', Actual: '" + actual + "'");
+        }
+    }
+
+    public void clickEditBusinessGroup() throws InterruptedException {
+        try { executor.executeScript("arguments[0].scrollIntoView({block:'center'});", businessGroupButton); } catch (Exception ignored) {}
+        WebElement edit = wait.until(ExpectedConditions.elementToBeClickable(editBusinessGroup));
+        executor.executeScript("arguments[0].click();", edit);
+        Thread.sleep(300);
+    }
+
+    public void selectBusinessGroup(String value) throws InterruptedException {
+        wait.until(ExpectedConditions.elementToBeClickable(businessGroupButton));
+        executor.executeScript("arguments[0].click();", businessGroupButton);
+        WebElement option = wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.xpath("//lightning-base-combobox-item//span[@title='" + value + "']")));
+        testContext.getLogger().info("Business Group option: {}",option);
+        executor.executeScript("arguments[0].click();", option);
+        Thread.sleep(300);
+    }
+
+    /*public boolean isSubBusinessGroupOptionPresent(String optionText) throws InterruptedException {
+        wait.until(ExpectedConditions.elementToBeClickable(subBusinessGroupButton));
+        executor.executeScript("arguments[0].click();", subBusinessGroupButton);
+        Thread.sleep(300);
+        try {
+            WebElement option = wait.until(ExpectedConditions.presenceOfElementLocated(
+                    By.xpath("//lightning-base-combobox-item//span[@title='" + optionText + "']")));
+            testContext.getLogger().info("Sub Business Group option: {}",option);
+            return option.isDisplayed();
+        } catch (TimeoutException e) {
+            return false;
+        } finally {
+            try { subBusinessGroupButton.sendKeys(Keys.ESCAPE); } catch (Exception ignored) {}
+        }
+    }*/
+
+    public boolean isSubBusinessGroupOptionPresent(String optionText) throws InterruptedException {
+        wait.until(ExpectedConditions.elementToBeClickable(subBusinessGroupButton));
+        executor.executeScript("arguments[0].click();", subBusinessGroupButton);
+        Thread.sleep(300);
+
+        boolean present;
+        try {
+            WebElement option = wait.until(ExpectedConditions.presenceOfElementLocated(
+                    By.xpath("//lightning-base-combobox-item//span[@title='" + optionText + "']")));
+            testContext.getLogger().info("Sub Business Group option: {}",option);
+            present = option.isDisplayed();
+        } catch (TimeoutException e) {
+            present = false;
+        } finally {
+            try { subBusinessGroupButton.sendKeys(Keys.ESCAPE); } catch (Exception ignored) {}
+            try {
+                wait.until(ExpectedConditions.elementToBeClickable(cancelEdit));
+                executor.executeScript("arguments[0].click();", cancelEdit);
+                Thread.sleep(2000);
+            } catch (Exception ignored) {}
+        }
+        return present;
     }
 }

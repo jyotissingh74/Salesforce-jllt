@@ -3,6 +3,7 @@ package com.jllt.functional.component.wdsf;
 import com.jllt.scenarioContext.context;
 import com.jllt.utils.extentLogger;
 import io.cucumber.datatable.DataTable;
+import io.cucumber.java.en.And;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.testng.Assert;
@@ -24,10 +25,8 @@ public class contactWdsfSteps {
     @Then("I navigate to the Contacts page")
     public void navigateToContactsPage() throws InterruptedException {
         extentLogger.info("Navigating to Contacts Page");
-        context.getContactsPage().clickNewContact();
+        context.getContactsWdsfPage().navigateToContactsTab();
         Thread.sleep(5000);
-        Assert.assertTrue(context.getCommonUtils().getPageTitle().contains("New Contact: Contact | Salesforce"));
-        extentLogger.pass("Contacts Page opened successfully");
     }
 
     @When("I click on the New Contact button And I fill in the following Contact details:")
@@ -46,15 +45,40 @@ public class contactWdsfSteps {
         context.setContextData("contactName", details.get("First Name") + " " + details.get("Last Name"));
         extentLogger.info("Filling contact details" + details.toString());
 
-        context.getContactsPage().CreateNewContact(details);
+        context.getContactsWdsfPage().CreateNewContact(details);
         context.getLogger().info("Filled in contact details from DataTable");
-        context.getContactsPage().setSaveEdit();
+        context.getContactsWdsfPage().setSaveEdit();
         context.getLogger().info("Save Contact Details");
         extentLogger.pass("Contact details saved");
     }
 
     @Then("I should be redirected to the contact landing page")
     public void NavigatedToContactLandingPage() throws InterruptedException {
-        context.getContactsPage().verifyContactLandingPageTitle();
+        context.getContactsWdsfPage().verifyContactLandingPageTitle();
+    }
+
+    @When("I click on the New Contact button with record type {string}")
+    public void selectContactRecordType(String recordType) throws InterruptedException {
+        extentLogger.info("Clicking on New Contact with record type: " + recordType);
+        context.getContactsWdsfPage().clickNewContact(recordType);
+        context.setContextData("currentRecordType", recordType);
+    }
+
+    @And("I should verify the fields on the contact record page:")
+    public void verifyFieldsOnContactRecordPage(io.cucumber.datatable.DataTable dt) throws InterruptedException {
+        for (Map<String, String> r : dt.asMaps(String.class, String.class)) {
+            context.getContactsWdsfPage().verifyContactField(
+                    r.get("Field Name"),
+                    r.getOrDefault("Expected Value", "")
+            );
+        }
+    }
+
+    @Then("I edit Business Group to {string} and verify Sub Business Group has option {string}")
+    public void editBusinessGroupAndVerifySubGroupOption(String businessGroup, String subGroupOption) throws InterruptedException {
+        context.getContactsWdsfPage().clickEditBusinessGroup();
+        context.getContactsWdsfPage().selectBusinessGroup(businessGroup);
+        boolean present = context.getContactsWdsfPage().isSubBusinessGroupOptionPresent(subGroupOption);
+        Assert.assertTrue(present, "Expected Sub Business Group option '" + subGroupOption + "' not found");
     }
 }
