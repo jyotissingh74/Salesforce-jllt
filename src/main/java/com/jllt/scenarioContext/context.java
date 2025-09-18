@@ -1,8 +1,6 @@
 package com.jllt.scenarioContext;
 
 import com.jllt.base.commonUtils;
-import com.jllt.pages.certinia.accountsCreationPage;
-import com.jllt.pages.certinia.timePeriodsPage;
 import com.jllt.pages.common.appLauncherPage;
 import com.jllt.pages.common.loginPage;
 import com.jllt.pages.wdsf.*;
@@ -19,8 +17,8 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
-@Getter
-@Setter
+//@Getter
+//@Setter
 //@AllArgsConstructor
 public class context {
     private WebDriver driver;
@@ -38,7 +36,7 @@ public class context {
     private leadConversionWdsfPage leadConversionWdsfPage;
 
     // Scenario context data
-    private Map<String, String> contextData;
+    private final Map<String, String> contextData;
 
     // Custom constructor for initialization
     public context() {
@@ -91,5 +89,62 @@ public class context {
         if (driver != null) {
             webDriverManager.quitDriver();
         }
+    }
+
+    public Logger getLogger() {
+        return logger;
+    }
+
+    public void setLogger(Logger logger) {
+        this.logger = logger;
+    }
+
+    public commonUtils getCommonUtils() {
+        return commonUtils;
+    }
+
+    public excelUtils getExcelUtils() {
+        return excelUtils;
+    }
+
+    public accountsWdsfPage getAccountsWdsfPage() {
+        return accountsWdsfPage;
+    }
+
+    public contactsWdsfPage getContactsWdsfPage() {
+        return contactsWdsfPage;
+    }
+
+    public opportunityWdsfPage getOpportunityWdsfPage() {
+        return opportunityWdsfPage;
+    }
+
+    public loginPage getLoginPage() {
+        return loginPage;
+    }
+
+    public WebDriverWait getWait() {
+        return wait;
+    }
+
+    public void setWait(WebDriverWait wait) {
+        this.wait = wait;
+    }
+
+    public appLauncherPage getAppLauncherPage() {
+        return appLauncherPage;
+    }
+
+    public leadsWdsfPage getLeadsWdsfPage() {
+        return leadsWdsfPage;
+    }
+
+
+    public genericWdsfPage getGenericWdsfPage() {
+        return genericWdsfPage;
+    }
+
+    public leadConversionWdsfPage getLeadConversionWdsfPage() {
+        return leadConversionWdsfPage;
     }
 }
