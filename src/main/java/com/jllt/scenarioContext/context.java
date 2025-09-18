@@ -21,7 +21,7 @@ import java.util.Map;
 
 @Getter
 @Setter
-@AllArgsConstructor
+//@AllArgsConstructor
 public class context {
     private WebDriver driver;
     private Logger logger;
@@ -32,7 +32,6 @@ public class context {
     private opportunityWdsfPage opportunityWdsfPage;
     private loginPage loginPage;
     private WebDriverWait wait;
-   // private accountsCreationPage accountsCreationPage;
     private appLauncherPage appLauncherPage;
     private leadsWdsfPage leadsWdsfPage;
     private genericWdsfPage genericWdsfPage;
@@ -58,7 +57,6 @@ public class context {
         this.contactsWdsfPage = new contactsWdsfPage(this);
         this.opportunityWdsfPage = new opportunityWdsfPage(this);
         this.loginPage = new loginPage(this);
-       // this.accountsCreationPage = new accountsCreationPage(this);
         this.appLauncherPage=new appLauncherPage(this);
         this.leadsWdsfPage = new leadsWdsfPage(this);
         this.genericWdsfPage = new genericWdsfPage(this);
